@@ -1,0 +1,236 @@
+﻿#!/usr/bin/env bash
+
+# 鍔犺浇 .env 鏂囦欢涓殑鐜鍙橀噺
+load_env() {
+    local ENV_FILE=".env"
+
+    # 濡傛灉鎸囧畾浜嗙幆澧冩枃浠惰矾寰勶紝浣跨敤鎸囧畾鐨勶紱鍚﹀垯浣跨敤榛樿鐨?.env
+    if [ -n "$1" ]; then
+        ENV_FILE="$1"
+    fi
+
+    if [ ! -f "$ENV_FILE" ]; then
+        echo "璀﹀憡锛氱幆澧冨彉閲忔枃浠?$ENV_FILE 涓嶅瓨鍦紝灏嗕娇鐢ㄩ粯璁ら厤缃?
+        return 1
+    fi
+
+    echo "姝ｅ湪鍔犺浇鐜鍙橀噺锛?ENV_FILE"
+
+    # 璇诲彇 .env 鏂囦欢骞跺鍑虹幆澧冨彉閲?    # 璺宠繃娉ㄩ噴琛屽拰绌鸿
+    while IFS= read -r line || [ -n "$line" ]; do
+        # 璺宠繃娉ㄩ噴鍜岀┖琛?        if [[ "$line" =~ ^[[:space:]]*# ]] || [[ -z "${line// }" ]]; then
+            continue
+        fi
+
+        # 绉婚櫎鍙兘鐨?Windows 鎹㈣绗?        line=$(echo "$line" | tr -d '\r')
+
+        # 鎻愬彇鍙橀噺鍚嶅拰鍊?        if [[ "$line" =~ ^([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]]; then
+            var_name="${BASH_REMATCH[1]}"
+            var_value="${BASH_REMATCH[2]}"
+
+            # 绉婚櫎鍊间袱杈圭殑寮曞彿锛堝鏋滃瓨鍦級
+            var_value="${var_value%\"}"
+            var_value="${var_value#\"}"
+            var_value="${var_value%\'}"
+            var_value="${var_value#\'}"
+
+            # 瀵煎嚭鐜鍙橀噺
+            export "$var_name=$var_value"
+            echo "  鉁?$var_name"
+        fi
+    done < "$ENV_FILE"
+
+    echo "鐜鍙橀噺鍔犺浇瀹屾垚"
+    echo ""
+}
+
+# 閰嶇疆 jdk17
+export JAVA_HOME=/usr/lib/jvm/java-17
+export PATH=$JAVA_HOME/bin:$PATH
+export MVN_HOME=/root/soft/apache-maven-3.9.11
+
+JAR_NAME="RAG-0.0.1-SNAPSHOT.jar"
+
+# 閮ㄧ讲
+function start() {
+    git pull
+
+    # 鏉€鎺変箣鍓嶇殑杩涚▼
+    if [ -f pid.log ]; then
+        cat pid.log | xargs -I {} kill {} 2>/dev/null || true
+        sleep 2
+    fi
+
+    mv ${JAR_NAME} ${JAR_NAME}.bak 2>/dev/null || true
+
+    ${MVN_HOME}/bin/mvn clean package spring-boot:repackage -DskipTests=true
+
+    mv target/${JAR_NAME} ./
+    run
+}
+
+# 閲嶅惎
+function restart() {
+    # 鏉€鎺変箣鍓嶇殑杩涚▼
+    if [ -f pid.log ]; then
+        cat pid.log | xargs -I {} kill {} 2>/dev/null || true
+        sleep 2
+    fi
+    # 閲嶆柊鍚姩
+    run
+}
+
+function run() {
+  echo "鍚姩鑴氭湰锛?=========="
+  echo "褰撳墠 Profile: ${SPRING_PROFILES_ACTIVE:-prod}"
+  echo "Java 鐗堟湰锛?($JAVA_HOME/bin/java -version 2>&1 | head -n 1)"
+  echo "JVM 鍙傛暟锛?Xms${JAVA_XMS:-1g} -Xmx${JAVA_XMX:-1g}"
+  echo "==========="
+
+  # ms 鍫嗗ぇ灏? mx 鏈€澶у爢澶у皬  mn 鏂扮敓浠ｅぇ灏?  nohup $JAVA_HOME/bin/java \
+    -server \
+    -Dspring.devtools.restart.enabled=false \
+    -Xms${JAVA_XMS:-1g} \
+    -Xmx${JAVA_XMX:-1g} \
+    -Xmn${JAVA_XMN:-256m} \
+    -XX:NativeMemoryTracking=detail \
+    -XX:-OmitStackTraceInFastThrow \
+    -jar ${JAR_NAME} > /dev/null 2>&1 &
+
+  echo $! 1> pid.log
+  echo "搴旂敤宸插惎鍔紝PID: $(cat pid.log)"
+}
+
+# 鏄剧ず甯姪淇℃伅
+function show_help() {
+    echo "鐢ㄦ硶锛?0 [鍛戒护] [閫夐」]"
+    echo ""
+    echo "鍛戒护:"
+    echo "  start       浠庢簮鐮佺紪璇戝苟鍚姩搴旂敤锛堜細鍏堟墽琛?git pull锛?
+    echo "  restart     閲嶅惎宸茬紪璇戠殑搴旂敤"
+    echo "  stop        鍋滄杩愯涓殑搴旂敤"
+    echo "  status      鏌ョ湅搴旂敤杩愯鐘舵€?
+    echo "  logs        鏌ョ湅搴旂敤鏃ュ織锛坱ail -f锛?
+    echo ""
+    echo "閫夐」:"
+    echo "  -e, --env   鎸囧畾 .env 鏂囦欢璺緞锛岄粯璁や负 ./.env"
+    echo "  -h, --help  鏄剧ず甯姪淇℃伅"
+    echo ""
+    echo "绀轰緥:"
+    echo "  $0 start                    # 浣跨敤榛樿 .env 鍚姩"
+    echo "  $0 start -e .env.prod       # 浣跨敤鐢熶骇鐜閰嶇疆鍚姩"
+    echo "  $0 restart                  # 閲嶅惎搴旂敤"
+    echo "  $0 stop                     # 鍋滄搴旂敤"
+    echo ""
+}
+
+# 鍋滄搴旂敤
+function stop() {
+    if [ ! -f pid.log ]; then
+        echo "鏈壘鍒?PID 鏂囦欢锛屽簲鐢ㄥ彲鑳芥湭杩愯"
+        return 1
+    fi
+
+    local pid=$(cat pid.log)
+    if ps -p $pid > /dev/null 2>&1; then
+        echo "姝ｅ湪鍋滄搴旂敤 (PID: $pid)..."
+        kill $pid
+        sleep 3
+
+        # 濡傛灉杩樺湪杩愯锛屽己鍒舵潃姝?        if ps -p $pid > /dev/null 2>&1; then
+            echo "搴旂敤鏈搷搴旓紝寮哄埗缁堟..."
+            kill -9 $pid
+        fi
+
+        rm -f pid.log
+        echo "搴旂敤宸插仠姝?
+    else
+        echo "搴旂敤鏈繍琛岋紙PID $pid 涓嶅瓨鍦級"
+        rm -f pid.log
+    fi
+}
+
+# 鏌ョ湅鐘舵€?function status() {
+    if [ ! -f pid.log ]; then
+        echo "搴旂敤鏈繍琛岋紙鏃?PID 鏂囦欢锛?
+        return 1
+    fi
+
+    local pid=$(cat pid.log)
+    if ps -p $pid > /dev/null 2>&1; then
+        echo "搴旂敤杩愯涓?(PID: $pid)"
+        echo ""
+        echo "=== 杩涚▼淇℃伅 ==="
+        ps -p $pid -o pid,ppid,user,%cpu,%mem,etime,start,time,cmd
+        echo ""
+        echo "=== 鏈€杩戞棩蹇?==="
+        tail -n 20 nohup.out 2>/dev/null || echo "鏃犳棩蹇楁枃浠?
+    else
+        echo "搴旂敤鏈繍琛岋紙PID $pid 涓嶅瓨鍦級"
+        rm -f pid.log
+        return 1
+    fi
+}
+
+# 鏌ョ湅鏃ュ織
+function logs() {
+    if [ -f nohup.out ]; then
+        tail -f nohup.out
+    else
+        echo "鏃ュ織鏂囦欢涓嶅瓨鍦?
+        return 1
+    fi
+}
+
+# 涓荤▼搴忓叆鍙?if [ $# == 0 ]; then
+    show_help
+    exit 1
+fi
+
+# 瑙ｆ瀽鍛戒护琛屽弬鏁?ENV_FILE=""
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -e|--env)
+            ENV_FILE="$2"
+            shift 2
+            ;;
+        -h|--help)
+            show_help
+            exit 0
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+COMMAND=$1
+
+# 鍔犺浇鐜鍙橀噺锛堥櫎浜?help 鍜?stop 鍛戒护锛?if [[ "$COMMAND" != "stop" && "$COMMAND" != "status" && "$COMMAND" != "logs" && "$COMMAND" != "-h" && "$COMMAND" != "--help" ]]; then
+    load_env "$ENV_FILE"
+fi
+
+# 鎵ц鍛戒护
+case $COMMAND in
+    start)
+        start
+        ;;
+    restart)
+        restart
+        ;;
+    stop)
+        stop
+        ;;
+    status)
+        status
+        ;;
+    logs)
+        logs
+        ;;
+    *)
+        echo "閿欒锛氭湭鐭ョ殑鍛戒护 '$COMMAND'"
+        echo ""
+        show_help
+        exit 1
+        ;;
+esac

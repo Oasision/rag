@@ -1,0 +1,186 @@
+@import './reset.css';
+@import './nprogress.css';
+@import './transition.css';
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+html {
+  overflow-x: hidden;
+}
+
+body {
+  font-family: 'Segoe UI Variable', 'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', system-ui, sans-serif;
+  color: rgb(var(--base-text-color));
+  background:
+    radial-gradient(circle at 8% 8%, rgb(125 211 252 / 0.34), transparent 34%),
+    radial-gradient(circle at 84% 2%, rgb(59 130 246 / 0.2), transparent 30%),
+    linear-gradient(135deg, #f8fbff 0%, #edf6ff 46%, #f7fbff 100%);
+}
+
+.fluent-aigc-shell {
+  --fluent-panel: rgb(255 255 255 / 0.72);
+  --fluent-panel-strong: rgb(255 255 255 / 0.88);
+  --fluent-panel-border: rgb(255 255 255 / 0.72);
+  --fluent-outline: rgb(37 99 235 / 0.14);
+  --fluent-shadow: 0 18px 48px rgb(15 23 42 / 0.1);
+  --fluent-shadow-hover: 0 22px 58px rgb(37 99 235 / 0.15);
+  --fluent-glow: 0 0 0 1px rgb(255 255 255 / 0.65) inset;
+
+  position: relative;
+  min-height: 100%;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 12% 10%, rgb(56 189 248 / 0.26), transparent 28%),
+    radial-gradient(circle at 92% 0%, rgb(37 99 235 / 0.18), transparent 26%),
+    linear-gradient(135deg, #f9fcff 0%, #eef7ff 44%, #f8fbff 100%);
+}
+
+.fluent-aigc-shell::before {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  content: '';
+  background-image:
+    linear-gradient(rgb(37 99 235 / 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(37 99 235 / 0.045) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: linear-gradient(180deg, rgb(0 0 0 / 0.34), transparent 78%);
+}
+
+.fluent-aigc-shell .bg-layout,
+.fluent-content-page {
+  background: transparent !important;
+}
+
+.fluent-content-page {
+  min-height: 100%;
+}
+
+.fluent-header-surface {
+  margin: 10px 16px 0 12px;
+  padding: 0 14px;
+  border: 1px solid var(--fluent-panel-border);
+  border-radius: 8px;
+  background: rgb(255 255 255 / 0.62) !important;
+  box-shadow:
+    var(--fluent-glow),
+    0 12px 32px rgb(15 23 42 / 0.08);
+  backdrop-filter: blur(18px) saturate(1.25);
+}
+
+.fluent-sider-surface {
+  width: calc(100% - 24px) !important;
+  height: calc(100% - 24px) !important;
+  margin: 12px;
+  overflow: hidden;
+  border: 1px solid var(--fluent-panel-border);
+  border-radius: 8px;
+  clip-path: inset(0 round 8px);
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.86), rgb(248 251 255 / 0.66)) !important;
+  box-shadow:
+    var(--fluent-glow),
+    16px 0 48px rgb(15 23 42 / 0.1) !important;
+  backdrop-filter: blur(22px) saturate(1.25);
+}
+
+.fluent-sider-surface > * {
+  border-radius: inherit;
+}
+
+.fluent-aigc-shell .n-card,
+.fluent-aigc-shell .n-data-table,
+.fluent-aigc-shell .n-list,
+.fluent-aigc-shell .n-modal .n-card {
+  border: 1px solid var(--fluent-panel-border);
+  background: var(--fluent-panel) !important;
+  box-shadow: var(--fluent-glow), var(--fluent-shadow);
+  backdrop-filter: blur(18px) saturate(1.18);
+}
+
+.fluent-aigc-shell .n-card {
+  transition:
+    transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.fluent-aigc-shell .n-card:hover {
+  border-color: rgb(96 165 250 / 0.34);
+  box-shadow: var(--fluent-glow), var(--fluent-shadow-hover);
+  transform: translateY(-1px);
+}
+
+.fluent-aigc-shell .n-button:not(.n-button--text):not(.n-button--quaternary) {
+  box-shadow: 0 8px 20px rgb(37 99 235 / 0.1);
+  transition:
+    transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 180ms ease,
+    background-color 180ms ease;
+}
+
+.fluent-aigc-shell .n-button:not(.n-button--disabled):hover {
+  box-shadow: 0 12px 28px rgb(37 99 235 / 0.16);
+  transform: translateY(-1px);
+}
+
+.fluent-aigc-shell .n-input,
+.fluent-aigc-shell .n-base-selection,
+.fluent-aigc-shell .n-input-number {
+  --n-border: 1px solid rgb(37 99 235 / 0.14) !important;
+  --n-border-hover: 1px solid rgb(37 99 235 / 0.36) !important;
+  --n-border-focus: 1px solid rgb(37 99 235 / 0.58) !important;
+  --n-box-shadow-focus: 0 0 0 3px rgb(37 99 235 / 0.12) !important;
+  background: rgb(255 255 255 / 0.72);
+}
+
+.fluent-aigc-shell .n-data-table {
+  overflow: hidden;
+}
+
+.fluent-aigc-shell .n-data-table-th {
+  background: rgb(248 251 255 / 0.86) !important;
+}
+
+.fluent-aigc-shell .n-menu .n-menu-item-content {
+  margin: 2px 10px;
+  border-radius: 8px;
+  transition:
+    background-color 180ms ease,
+    color 180ms ease,
+    transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.fluent-aigc-shell .n-menu .n-menu-item-content:hover {
+  background-color: rgb(37 99 235 / 0.08);
+  transform: translateX(2px);
+}
+
+.fluent-aigc-shell .n-menu .n-menu-item-content--selected {
+  color: #1d4ed8;
+  background: linear-gradient(135deg, rgb(37 99 235 / 0.15), rgb(14 165 233 / 0.09)) !important;
+  box-shadow: inset 3px 0 0 #2563eb;
+}
+
+.dark .fluent-aigc-shell {
+  --fluent-panel: rgb(15 23 42 / 0.68);
+  --fluent-panel-strong: rgb(15 23 42 / 0.84);
+  --fluent-panel-border: rgb(148 163 184 / 0.18);
+  --fluent-outline: rgb(96 165 250 / 0.2);
+  --fluent-shadow: 0 18px 48px rgb(0 0 0 / 0.28);
+  --fluent-shadow-hover: 0 22px 58px rgb(0 0 0 / 0.34);
+
+  background:
+    radial-gradient(circle at 12% 10%, rgb(56 189 248 / 0.16), transparent 30%),
+    radial-gradient(circle at 92% 0%, rgb(37 99 235 / 0.2), transparent 28%),
+    linear-gradient(135deg, #07111f 0%, #0f172a 52%, #111827 100%);
+}
+
+.dark .fluent-header-surface,
+.dark .fluent-sider-surface {
+  background: rgb(15 23 42 / 0.66) !important;
+}
