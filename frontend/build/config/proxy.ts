@@ -43,9 +43,12 @@ function createProxyItem(item: App.Service.ServiceConfigItem, enableLog: boolean
 
         consola.log(`${requestUrl}\n${proxyUrl}`);
       });
-      _proxy.on('error', (_err, req, _res) => {
+      _proxy.on('error', (err, req, _res) => {
         if (!enableLog) return;
-        consola.log(bgRed(`Error: ${req.method} `), green(`${options.target}${req.url}`));
+        const method = req?.method || 'UNKNOWN';
+        const url = req?.url || '';
+        const message = err instanceof Error ? err.message : String(err);
+        consola.log(bgRed(`Error: ${method} `), green(`${options.target}${url}`), message);
       });
     },
     ws: /^wss?:\/\//.test(item.baseURL),

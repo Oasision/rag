@@ -83,7 +83,3 @@ src/main/resources/cert
 .claude/settings.local.json
 lc_project_settings.json
 *.bak
-
-src/main/resources/application.yml
-src/main/resources/application-dev.yml
-src/main/resources/application-docker.yml

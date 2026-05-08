@@ -8,10 +8,11 @@ const { activeTab, conversationId, filteredSessions, sessionsLoading } = storeTo
 
 const DEFAULT_WIDTH = 240;
 const MIN_WIDTH = 180;
-const MAX_WIDTH = 360;
+const MAX_WIDTH = 380;
 const COLLAPSE_THRESHOLD = 156;
 
 const collapsed = ref(false);
+const sidebarRef = ref<HTMLElement | null>(null);
 const sidebarWidth = ref(DEFAULT_WIDTH);
 const isResizing = ref(false);
 
@@ -51,6 +52,11 @@ function expandSidebar() {
   sidebarWidth.value = Math.max(sidebarWidth.value, DEFAULT_WIDTH);
 }
 
+function collapseSidebar() {
+  collapsed.value = true;
+  stopResize();
+}
+
 function startResize(event: PointerEvent) {
   if (collapsed.value) {
     return;
@@ -63,14 +69,15 @@ function startResize(event: PointerEvent) {
 }
 
 function handleResize(event: PointerEvent) {
-  if (!isResizing.value) {
+  if (!isResizing.value || !sidebarRef.value) {
     return;
   }
 
-  const nextWidth = event.clientX;
-  if (nextWidth <= COLLAPSE_THRESHOLD) {
-    collapsed.value = true;
-    stopResize();
+  const sidebarLeft = sidebarRef.value.getBoundingClientRect().left;
+  const nextWidth = event.clientX - sidebarLeft;
+
+  if (nextWidth < COLLAPSE_THRESHOLD) {
+    collapseSidebar();
     return;
   }
 
@@ -89,7 +96,12 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <aside class="conversation-sidebar" :class="{ collapsed, resizing: isResizing }" :style="sidebarStyle">
+  <aside
+    ref="sidebarRef"
+    class="conversation-sidebar"
+    :class="{ collapsed, resizing: isResizing }"
+    :style="sidebarStyle"
+  >
     <div v-if="collapsed" class="collapsed-actions">
       <NButton type="primary" size="small" circle @click="chatStore.createNewSession">
         <template #icon>
@@ -112,11 +124,6 @@ onBeforeUnmount(() => {
               <icon-material-symbols:add-rounded />
             </template>
             新建
-          </NButton>
-          <NButton text size="small" @click="collapsed = true">
-            <template #icon>
-              <icon-material-symbols:chevron-left-rounded />
-            </template>
           </NButton>
         </div>
       </header>
@@ -181,24 +188,30 @@ onBeforeUnmount(() => {
       </NSpin>
 
       <div
-        class="resize-handle"
+        class="resize-rail"
         role="separator"
         aria-orientation="vertical"
         title="拖动调整宽度"
         @pointerdown="startResize"
-      />
+      >
+        <NButton text size="small" class="edge-collapse-button" @pointerdown.stop @click.stop="collapseSidebar">
+          <template #icon>
+            <icon-material-symbols:chevron-left-rounded />
+          </template>
+        </NButton>
+      </div>
     </template>
   </aside>
 </template>
 
 <style scoped>
 .conversation-sidebar {
+  position: relative;
   display: flex;
   width: 240px;
   min-width: 240px;
   height: 100%;
   flex-direction: column;
-  border-right: 1px solid rgb(15 23 42 / 0.1);
   background: rgb(255 255 255 / 0.92);
   transition:
     width 0.2s ease,
@@ -228,7 +241,7 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 14px 14px 10px;
+  padding: 14px 34px 10px 14px;
 }
 
 .title {
@@ -246,7 +259,7 @@ onBeforeUnmount(() => {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 4px;
-  margin: 0 12px 10px;
+  margin: 0 34px 10px 12px;
   border-radius: 8px;
   background: rgb(15 23 42 / 0.06);
   padding: 4px;
@@ -279,7 +292,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 4px;
   overflow-y: auto;
-  padding: 0 8px 12px;
+  padding: 0 28px 12px 8px;
 }
 
 .session-item {
@@ -362,29 +375,36 @@ onBeforeUnmount(() => {
   font-size: 32px;
 }
 
-.resize-handle {
+.resize-rail {
   position: absolute;
   top: 0;
-  right: -4px;
+  right: 0;
   z-index: 2;
-  width: 8px;
+  width: 24px;
   height: 100%;
   cursor: col-resize;
 }
 
-.resize-handle::after {
+.resize-rail::before {
   position: absolute;
   top: 0;
-  right: 3px;
+  right: 0;
   width: 1px;
   height: 100%;
-  background: transparent;
+  background: rgb(15 23 42 / 0.08);
   content: '';
   transition: background 0.15s ease;
 }
 
-.resize-handle:hover::after,
-.conversation-sidebar.resizing .resize-handle::after {
-  background: rgb(var(--primary-color) / 0.45);
+.resize-rail:hover::before,
+.conversation-sidebar.resizing .resize-rail::before {
+  background: rgb(var(--primary-color) / 0.48);
+}
+
+.edge-collapse-button {
+  position: absolute;
+  top: 39px;
+  right: 1px;
+  cursor: pointer;
 }
 </style>
