@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -47,6 +48,16 @@ public class ConversationSessionController {
         Long userId = extractUserId(token);
         conversationService.switchCurrentConversation(userId, conversationId);
         return ResponseEntity.ok(response(200, "OK", null));
+    }
+
+    @PutMapping("/{conversationId}/title")
+    public ResponseEntity<?> renameSession(
+            @RequestHeader("Authorization") String token,
+            @PathVariable String conversationId,
+            @RequestBody RenameSessionRequest request) {
+        Long userId = extractUserId(token);
+        return ResponseEntity.ok(response(200, "OK",
+                conversationService.renameConversationSession(userId, conversationId, request.title())));
     }
 
     @PutMapping("/{conversationId}/archive")
@@ -90,5 +101,8 @@ public class ConversationSessionController {
         response.put("message", message);
         response.put("data", data);
         return response;
+    }
+
+    public record RenameSessionRequest(String title) {
     }
 }

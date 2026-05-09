@@ -11,7 +11,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.Disposable;
 
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -94,6 +96,46 @@ public class LlmProviderRouter {
         } catch (Exception exception) {
             usageQuotaService.abortReservation(reservation);
             throw exception;
+        }
+    }
+
+    public String completeAgentDecision(String requesterId, List<Map<String, String>> messages, int maxCompletionTokens) {
+        ModelProviderConfigService.ActiveProviderView provider = modelProviderConfigService.getActiveProvider(ModelProviderConfigService.SCOPE_LLM);
+        int normalizedMaxTokens = Math.max(128, Math.min(maxCompletionTokens, 1024));
+        int estimatedPromptTokens = usageQuotaService.estimateChatTokens(messages);
+        UsageQuotaService.TokenReservationBundle reservation = rateLimitService.reserveLlmUsage(
+                requesterId,
+                estimatedPromptTokens,
+                normalizedMaxTokens
+        );
+
+        Map<String, Object> request = new HashMap<>();
+        request.put("model", provider.model());
+        request.put("messages", messages);
+        request.put("stream", false);
+        request.put("temperature", 0);
+        request.put("max_tokens", normalizedMaxTokens);
+
+        try {
+            String raw = buildClient(provider)
+                    .post()
+                    .uri("/chat/completions")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(request)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block(Duration.ofSeconds(30));
+
+            JsonNode root = objectMapper.readTree(raw == null ? "{}" : raw);
+            int promptTokens = root.path("usage").path("prompt_tokens").asInt(estimatedPromptTokens);
+            String content = root.path("choices").path(0).path("message").path("content").asText("");
+            int completionTokens = root.path("usage").path("completion_tokens")
+                    .asInt(usageQuotaService.estimateTextTokens(content));
+            usageQuotaService.settleReservation(reservation, promptTokens + completionTokens);
+            return content;
+        } catch (Exception exception) {
+            usageQuotaService.abortReservation(reservation);
+            throw new RuntimeException("Agent decision request failed: " + exception.getMessage(), exception);
         }
     }
 

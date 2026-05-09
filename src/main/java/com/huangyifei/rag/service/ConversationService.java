@@ -52,16 +52,28 @@ public class ConversationService {
 
     public void recordConversation(Long userId, String question, String answer, String conversationId,
                                    Map<String, Map<String, Object>> referenceMappings) {
+        recordConversation(userId, question, answer, conversationId, referenceMappings, null);
+    }
+
+    public void recordConversation(Long userId, String question, String answer, String conversationId,
+                                   Map<String, Map<String, Object>> referenceMappings,
+                                   Object toolInvocations) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException("User not found", HttpStatus.NOT_FOUND));
         ConversationSession session = ensureConversationSession(userId, conversationId, question);
-        saveConversation(user, question, answer, session.getConversationId(), referenceMappings);
+        saveConversation(user, question, answer, session.getConversationId(), referenceMappings, toolInvocations);
         updateSessionTitleIfDefault(session, question);
         touchSessionUpdatedAt(session);
     }
 
     private void saveConversation(User user, String question, String answer, String conversationId,
                                   Map<String, Map<String, Object>> referenceMappings) {
+        saveConversation(user, question, answer, conversationId, referenceMappings, null);
+    }
+
+    private void saveConversation(User user, String question, String answer, String conversationId,
+                                  Map<String, Map<String, Object>> referenceMappings,
+                                  Object toolInvocations) {
         Conversation conversation = new Conversation();
         conversation.setUser(user);
         conversation.setQuestion(question == null ? "" : question);
@@ -69,6 +81,10 @@ public class ConversationService {
         conversation.setConversationId(conversationId);
         try {
             conversation.setReferenceMappingsJson(referenceMappings == null ? null : objectMapper.writeValueAsString(referenceMappings));
+        } catch (Exception ignored) {
+        }
+        try {
+            conversation.setToolInvocationsJson(toolInvocations == null ? null : objectMapper.writeValueAsString(toolInvocations));
         } catch (Exception ignored) {
         }
         conversationRepository.save(conversation);
@@ -194,6 +210,13 @@ public class ConversationService {
         conversationSessionRepository.save(session);
     }
 
+    public Map<String, Object> renameConversationSession(Long userId, String conversationId, String title) {
+        ConversationSession session = getOwnedSession(userId, conversationId);
+        session.setTitle(normalizeSessionTitle(title));
+        ConversationSession saved = conversationSessionRepository.save(session);
+        return toSessionMap(saved);
+    }
+
     public void touchSessionUpdatedAt(ConversationSession session) {
         if (session == null) {
             return;
@@ -249,6 +272,17 @@ public class ConversationService {
         return normalized.substring(0, 30);
     }
 
+    private String normalizeSessionTitle(String title) {
+        String normalized = title == null ? "" : title.replaceAll("\\s+", " ").trim();
+        if (normalized.isBlank()) {
+            return "新对话";
+        }
+        if (normalized.length() <= 80) {
+            return normalized;
+        }
+        return normalized.substring(0, 80);
+    }
+
     private void setCurrentConversation(Long userId, String conversationId) {
         stringRedisTemplate.opsForValue().set(currentConversationKey(userId), conversationId);
     }
@@ -271,11 +305,28 @@ public class ConversationService {
         if (references != null && !references.isEmpty()) {
             message.put("referenceMappings", references);
         }
+        List<Map<String, Object>> toolInvocations = parseToolInvocations(conversation);
+        if (toolInvocations != null && !toolInvocations.isEmpty()) {
+            message.put("toolInvocations", toolInvocations);
+        }
         return message;
     }
 
     private Map<String, Map<String, Object>> parseReferences(Conversation conversation) {
         String raw = conversation.getReferenceMappingsJson();
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(raw, new TypeReference<>() {
+            });
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private List<Map<String, Object>> parseToolInvocations(Conversation conversation) {
+        String raw = conversation.getToolInvocationsJson();
         if (raw == null || raw.isBlank()) {
             return null;
         }

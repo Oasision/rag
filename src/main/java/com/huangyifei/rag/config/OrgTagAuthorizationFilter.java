@@ -112,6 +112,9 @@ public class OrgTagAuthorizationFilter extends OncePerRequestFilter {
                 || path.matches(".*/documents/accessible.*")
                 || path.matches(".*/documents/page-preview.*")
                 || path.matches(".*/search/hybrid.*")
+                || path.matches(".*/users/conversation.*")
+                || path.matches(".*/users/conversations.*")
+                || path.matches(".*/agent/tools.*")
                 || (path.matches(".*/documents/[a-fA-F0-9]{32}.*")
                 && ("DELETE".equals(method) || "POST".equals(method)));
     }

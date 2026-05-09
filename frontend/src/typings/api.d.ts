@@ -457,6 +457,14 @@ declare namespace Api {
       generationId?: string;
       username?: string;
       referenceMappings?: Record<string, ReferenceEvidence>;
+      toolInvocations?: Array<{
+        step: number;
+        toolName: string;
+        input: string;
+        resultCount: number;
+        reason?: string;
+        executedAt: string;
+      }>;
     }
 
     interface Token {

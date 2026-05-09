@@ -15,6 +15,8 @@ const collapsed = ref(false);
 const sidebarRef = ref<HTMLElement | null>(null);
 const sidebarWidth = ref(DEFAULT_WIDTH);
 const isResizing = ref(false);
+const editingConversationId = ref('');
+const editingTitle = ref('');
 
 const sidebarStyle = computed(() => {
   if (collapsed.value) {
@@ -45,6 +47,37 @@ function formatDate(dateStr?: string) {
     return date.format('MM-DD');
   }
   return date.format('YYYY-MM-DD');
+}
+
+function sessionTitle(session: Api.Chat.ConversationSession) {
+  return session.title || '新对话';
+}
+
+function startEdit(session: Api.Chat.ConversationSession) {
+  if (activeTab.value !== 'active') {
+    return;
+  }
+
+  editingConversationId.value = session.conversationId;
+  editingTitle.value = sessionTitle(session);
+}
+
+function cancelEdit() {
+  editingConversationId.value = '';
+  editingTitle.value = '';
+}
+
+async function saveEdit(session: Api.Chat.ConversationSession) {
+  const nextTitle = editingTitle.value.replace(/\s+/g, ' ').trim();
+  if (!nextTitle || nextTitle === sessionTitle(session)) {
+    cancelEdit();
+    return;
+  }
+
+  const success = await chatStore.renameSession(session.conversationId, nextTitle);
+  if (success) {
+    cancelEdit();
+  }
 }
 
 function expandSidebar() {
@@ -154,9 +187,42 @@ onBeforeUnmount(() => {
               <icon-material-symbols:chat-outline-rounded />
             </span>
             <span class="session-main">
-              <span class="session-title">{{ session.title || '新对话' }}</span>
+              <NInput
+                v-if="editingConversationId === session.conversationId"
+                v-model:value="editingTitle"
+                class="session-title-input"
+                size="tiny"
+                maxlength="80"
+                autofocus
+                @mousedown.stop
+                @click.stop
+                @keydown.enter.prevent="saveEdit(session)"
+                @keydown.esc.prevent="cancelEdit"
+                @blur="saveEdit(session)"
+              />
+              <NTooltip v-else trigger="hover" placement="top-start">
+                <template #trigger>
+                  <span class="session-title" @dblclick.stop="startEdit(session)">
+                    {{ sessionTitle(session) }}
+                  </span>
+                </template>
+                {{ sessionTitle(session) }}
+              </NTooltip>
               <span class="session-time">{{ formatDate(session.updatedAt) }}</span>
             </span>
+
+            <NButton
+              v-if="activeTab === 'active'"
+              text
+              size="tiny"
+              class="session-action"
+              title="编辑名称"
+              @click.stop="startEdit(session)"
+            >
+              <template #icon>
+                <icon-material-symbols:edit-outline-rounded />
+              </template>
+            </NButton>
 
             <NPopconfirm
               v-if="activeTab === 'active'"
@@ -342,6 +408,15 @@ onBeforeUnmount(() => {
   font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.session-title-input {
+  width: 100%;
+}
+
+.session-title-input :deep(.n-input__input-el) {
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .session-time {
