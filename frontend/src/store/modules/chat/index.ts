@@ -213,6 +213,31 @@ export const useChatStore = defineStore(SetupStoreId.Chat, () => {
     await loadMessages();
   }
 
+  async function renameSession(targetConversationId: string, title: string) {
+    const normalizedTitle = title.replace(/\s+/g, ' ').trim();
+    if (!targetConversationId || !normalizedTitle) {
+      return false;
+    }
+
+    const { error, data } = await request<Api.Chat.ConversationSession>({
+      url: `users/conversations/${targetConversationId}/title`,
+      method: 'put',
+      data: {
+        title: normalizedTitle
+      }
+    });
+
+    if (error || !data) {
+      return false;
+    }
+
+    const index = sessions.value.findIndex(item => item.conversationId === targetConversationId);
+    if (index >= 0) {
+      sessions.value[index] = data;
+    }
+    return true;
+  }
+
   async function loadMessages(params: Record<string, string> = {}) {
     if (!conversationId.value) {
       list.value = [];
@@ -466,6 +491,7 @@ export const useChatStore = defineStore(SetupStoreId.Chat, () => {
     loadSessions,
     createNewSession,
     switchSession,
+    renameSession,
     loadMessages,
     archiveSession,
     unarchiveSession

@@ -118,6 +118,9 @@ function handleCompletionPayload(assistant: Api.Chat.Message, payload: Record<st
   if (payload.referenceMappings) {
     assistant.referenceMappings = payload.referenceMappings;
   }
+  if (payload.toolInvocations) {
+    assistant.toolInvocations = payload.toolInvocations;
+  }
 }
 
 function handleStopPayload(assistant: Api.Chat.Message) {

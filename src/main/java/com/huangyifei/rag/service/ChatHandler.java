@@ -1,7 +1,7 @@
 package com.huangyifei.rag.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.huangyifei.rag.entity.SearchResult;
+import com.huangyifei.rag.service.KnowledgeSearchToolService.KnowledgeSearchHit;
 import org.springframework.stereotype.Service;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
@@ -15,7 +15,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Service
 public class ChatHandler {
 
-    private final HybridSearchService searchService;
+    private final RagAgentService ragAgentService;
     private final LlmProviderRouter llmProviderRouter;
     private final ConversationService conversationService;
     private final ChatGenerationStateService chatGenerationStateService;
@@ -23,12 +23,12 @@ public class ChatHandler {
     private final Map<String, ChatStreamHandle> activeStreams = new ConcurrentHashMap<>();
     private final Map<String, Map<Integer, ReferenceInfo>> generationReferenceMappings = new ConcurrentHashMap<>();
 
-    public ChatHandler(HybridSearchService searchService,
+    public ChatHandler(RagAgentService ragAgentService,
                        LlmProviderRouter llmProviderRouter,
                        ConversationService conversationService,
                        ChatGenerationStateService chatGenerationStateService,
                        ObjectMapper objectMapper) {
-        this.searchService = searchService;
+        this.ragAgentService = ragAgentService;
         this.llmProviderRouter = llmProviderRouter;
         this.conversationService = conversationService;
         this.chatGenerationStateService = chatGenerationStateService;
@@ -53,9 +53,25 @@ public class ChatHandler {
                 "conversationId", activeConversationId
         ));
 
-        List<SearchResult> results = searchService.searchWithPermission(normalizedMessage, userId, 5);
-        String context = buildContext(results);
-        Map<Integer, ReferenceInfo> references = buildReferenceMappings(normalizedMessage, results);
+        RagAgentService.AgentPreparation agentPreparation = ragAgentService.prepare(userId, normalizedMessage);
+        for (RagAgentService.ToolInvocation invocation : agentPreparation.toolInvocations()) {
+            send(session, Map.of(
+                    "type", "tool_result",
+                    "generationId", generationId,
+                    "conversationId", activeConversationId,
+                    "toolName", invocation.toolName(),
+                    "step", invocation.step(),
+                    "input", invocation.input(),
+                    "resultCount", invocation.resultCount(),
+                    "reason", invocation.reason()
+            ));
+        }
+
+        String context = agentPreparation.context();
+        Map<Integer, ReferenceInfo> references = buildReferenceMappings(
+                normalizedMessage,
+                agentPreparation.knowledgeSearch().results()
+        );
         generationReferenceMappings.put(generationId, references);
 
         StringBuilder answer = new StringBuilder();
@@ -94,14 +110,16 @@ public class ChatHandler {
                                 normalizedMessage,
                                 answer.toString(),
                                 activeConversationId,
-                                referencePayload);
+                                referencePayload,
+                                agentPreparation.toolInvocations());
                         chatGenerationStateService.markCompleted(generationId, referencePayload);
                         send(session, Map.of(
                                 "type", "completion",
                                 "generationId", generationId,
                                 "conversationId", activeConversationId,
                                 "status", "finished",
-                                "referenceMappings", referencePayload));
+                                "referenceMappings", referencePayload,
+                                "toolInvocations", agentPreparation.toolInvocations()));
                     } catch (Exception exception) {
                         chatGenerationStateService.markFailed(generationId, exception.getMessage());
                         send(session, Map.of(
@@ -135,41 +153,22 @@ public class ChatHandler {
         return references == null ? null : references.get(referenceNumber);
     }
 
-    private String buildContext(List<SearchResult> results) {
-        StringBuilder context = new StringBuilder();
-        int index = 1;
-        for (SearchResult result : results) {
-            context.append("[").append(index).append("] ")
-                    .append("File: ").append(result.getFileName() == null ? "Unknown file" : result.getFileName());
-            if (result.getPageNumber() != null) {
-                context.append(" | Page: ").append(result.getPageNumber());
-            }
-            context.append("\n")
-                    .append(result.getTextContent() == null ? "" : result.getTextContent())
-                    .append("\n");
-            index++;
-        }
-        return context.toString();
-    }
-
-    private Map<Integer, ReferenceInfo> buildReferenceMappings(String query, List<SearchResult> results) {
+    private Map<Integer, ReferenceInfo> buildReferenceMappings(String query, List<KnowledgeSearchHit> results) {
         Map<Integer, ReferenceInfo> references = new HashMap<>();
-        int index = 1;
-        for (SearchResult result : results) {
-            references.put(index, new ReferenceInfo(
-                    result.getFileMd5(),
-                    result.getFileName(),
-                    result.getPageNumber(),
-                    result.getAnchorText(),
-                    result.getRetrievalMode(),
-                    "RAG retrieval",
+        for (KnowledgeSearchHit result : results) {
+            references.put(result.referenceNumber(), new ReferenceInfo(
+                    result.fileMd5(),
+                    result.fileName(),
+                    result.pageNumber(),
+                    result.anchorText(),
+                    result.retrievalMode(),
+                    result.retrievalLabel(),
                     query,
-                    result.getMatchedChunkText() != null ? result.getMatchedChunkText() : result.getTextContent(),
-                    result.getAnchorText(),
-                    result.getScore(),
-                    result.getChunkId()
+                    result.matchedChunkText() != null ? result.matchedChunkText() : result.content(),
+                    result.anchorText(),
+                    result.score(),
+                    result.chunkId()
             ));
-            index++;
         }
         return references;
     }

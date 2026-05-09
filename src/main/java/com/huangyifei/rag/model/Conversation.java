@@ -44,6 +44,9 @@ public class Conversation {
     @Column(name = "reference_mappings_json", columnDefinition = "LONGTEXT")
     private String referenceMappingsJson;
 
+    @Column(name = "tool_invocations_json", columnDefinition = "LONGTEXT")
+    private String toolInvocationsJson;
+
     @CreationTimestamp
     private LocalDateTime timestamp;
 }

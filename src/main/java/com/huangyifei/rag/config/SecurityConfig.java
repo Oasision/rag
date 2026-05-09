@@ -34,6 +34,8 @@ public class SecurityConfig {
                                 "/api/v1/documents/page-preview"
                         ).hasAnyRole("USER", "ADMIN")
                         .requestMatchers("/api/v1/chat/**").hasAnyRole("USER", "ADMIN")
+                        .requestMatchers("/api/v1/agent/tools/**").hasAnyRole("USER", "ADMIN")
+                        .requestMatchers("/api/v1/users/conversation/**", "/api/v1/users/conversations/**").hasAnyRole("USER", "ADMIN")
                         .requestMatchers("/api/v1/users/primary-org").hasAnyRole("USER", "ADMIN")
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()

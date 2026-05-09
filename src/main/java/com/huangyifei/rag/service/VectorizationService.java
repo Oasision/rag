@@ -141,7 +141,7 @@ public class VectorizationService {
     }
 
     private List<TextChunk> fetchTextChunks(String fileMd5) {
-        List<DocumentVector> vectors = documentVectorRepository.findByFileMd5(fileMd5);
+        List<DocumentVector> vectors = documentVectorRepository.findByFileMd5OrderByChunkIdAsc(fileMd5);
         return vectors.stream()
                 .map(vector -> new TextChunk(vector.getChunkId(), vector.getTextContent(), vector.getPageNumber(), vector.getAnchorText()))
                 .toList();
